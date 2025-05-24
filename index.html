@@ -1,134 +1,209 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Solar Potential Calculator</title>
+  <meta charset="UTF-8">
+  <title>Solar Scenario Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background-color: #f5f5f5;
+      font-family: sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1, h2, h3 {
+      color: #1f2937;
     }
     .container {
-      max-width: 600px;
-      background: white;
-      padding: 2rem;
+      max-width: 1200px;
       margin: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    h2 {
-      text-align: center;
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     label {
-      font-weight: bold;
+      font-weight: 500;
     }
-    input {
+    input[type=number] {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-      margin-bottom: 1rem;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 15px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      padding: 0.75rem 1rem;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      width: 100%;
-    }
-    button:hover {
-      background-color: #0056b3;
+      border-radius: 6px;
     }
     .result {
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid #ddd;
+      background: #f3f4f6;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 10px;
     }
-    #chart {
-      margin-top: 1rem;
+    canvas {
+      max-width: 100%;
+    }
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Solar Potential Calculator</h2>
-    <label for="roofArea">Roof Area (sq.m):</label>
-    <input type="number" id="roofArea" placeholder="e.g., 100" />
+    <h1>Solar Scenario Calculator</h1>
+    <div class="grid">
+      <!-- Input Panel -->
+      <div class="card">
+        <h2>Input Parameters</h2>
+        <label>Current Consumption (Post-Solar) - kWh</label>
+        <input type="number" id="consumptionPostSolar" value="56520">
 
-    <label for="panelWatt">Panel Wattage (W):</label>
-    <input type="number" id="panelWatt" placeholder="e.g., 450" />
+        <label>Existing Solar Generation - kWh</label>
+        <input type="number" id="existingSolarGen" value="6512">
 
-    <label for="performanceRatio">Performance Ratio (0.5 - 1):</label>
-    <input type="number" id="performanceRatio" step="0.01" min="0.5" max="1" placeholder="e.g., 0.75" />
+        <label>Existing Self-Consumption (%)</label>
+        <input type="number" id="existingSelfConsumption" step="0.01" min="0" max="1" value="0.85">
 
-    <button onclick="calculate()">Calculate</button>
+        <label>Total Generation (Existing + Add-on) - kWh</label>
+        <input type="number" id="totalGeneration" value="28938">
 
-    <div class="result" id="results"></div>
-    <div id="chart"></div>
+        <label>Combined Self-Consumption (%)</label>
+        <input type="number" id="combinedSelfConsumption" step="0.01" min="0" max="1" value="0.63">
+
+        <label>Add-on Generation - kWh</label>
+        <input type="number" id="addOnGeneration" value="23322">
+
+        <button onclick="calculateAndRender()">Calculate</button>
+      </div>
+
+      <!-- Result Panel -->
+      <div class="card">
+        <h2>Calculated Results</h2>
+        <div class="result" id="result_actualConsumptionPreSolar"></div>
+        <div class="result" id="result_existingEnergyToSchool"></div>
+        <div class="result" id="result_combinedEnergyToSchool"></div>
+        <div class="result" id="result_additionalBenefit"></div>
+        <div class="result" id="result_addOnSelfConsumption"></div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid" style="margin-top: 30px;">
+      <div class="card">
+        <h3>Solar Generation vs Usage</h3>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Energy Consumption Breakdown</h3>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
   </div>
 
-  <!-- React + ReactDOM + Recharts from CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <script>
+    let barChart, pieChart;
 
-  <script type="text/javascript">
-    const { useState, useEffect } = React;
-    const { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } = Recharts;
+    function calculateAndRender() {
+      const inputs = {
+        consumptionPostSolar: parseFloat(document.getElementById('consumptionPostSolar').value),
+        existingSolarGen: parseFloat(document.getElementById('existingSolarGen').value),
+        existingSelfConsumption: parseFloat(document.getElementById('existingSelfConsumption').value),
+        totalGeneration: parseFloat(document.getElementById('totalGeneration').value),
+        combinedSelfConsumption: parseFloat(document.getElementById('combinedSelfConsumption').value),
+        addOnGeneration: parseFloat(document.getElementById('addOnGeneration').value),
+      };
 
-    function calculateSolar(roofArea, panelWatt, performanceRatio) {
-      const panelArea = 2; // m² per panel
-      const panels = Math.floor(roofArea / panelArea);
-      const capacityKW = (panels * panelWatt) / 1000;
-      const monthlyKWh = Array.from({ length: 12 }, (_, i) => {
-        const irradiance = [85, 95, 120, 135, 140, 145, 150, 140, 120, 100, 90, 80][i];
-        return +(capacityKW * irradiance * performanceRatio).toFixed(2);
+      const existingEnergyToSchool = inputs.existingSolarGen * inputs.existingSelfConsumption;
+      const actualConsumptionPreSolar = inputs.consumptionPostSolar + existingEnergyToSchool;
+      const combinedEnergyToSchool = inputs.totalGeneration * inputs.combinedSelfConsumption;
+      const additionalBenefit = combinedEnergyToSchool - existingEnergyToSchool;
+      const addOnSelfConsumption = inputs.addOnGeneration > 0 ? additionalBenefit / inputs.addOnGeneration : 0;
+
+      // Show results
+      document.getElementById("result_actualConsumptionPreSolar").innerText = `Actual Consumption (Pre-Solar): ${Math.round(actualConsumptionPreSolar).toLocaleString()} kWh`;
+      document.getElementById("result_existingEnergyToSchool").innerText = `Existing Energy to School: ${Math.round(existingEnergyToSchool).toLocaleString()} kWh`;
+      document.getElementById("result_combinedEnergyToSchool").innerText = `Combined Energy to School: ${Math.round(combinedEnergyToSchool).toLocaleString()} kWh`;
+      document.getElementById("result_additionalBenefit").innerText = `Additional Benefit: ${Math.round(additionalBenefit).toLocaleString()} kWh`;
+      document.getElementById("result_addOnSelfConsumption").innerText = `Add-on Self-Consumption: ${(addOnSelfConsumption * 100).toFixed(1)}%`;
+
+      // Bar Chart Data
+      const barData = {
+        labels: ['Current System', 'Combined System'],
+        datasets: [
+          {
+            label: 'Energy to School',
+            data: [existingEnergyToSchool, combinedEnergyToSchool],
+            backgroundColor: '#82ca9d'
+          },
+          {
+            label: 'Unused Solar',
+            data: [
+              inputs.existingSolarGen - existingEnergyToSchool,
+              inputs.totalGeneration - combinedEnergyToSchool
+            ],
+            backgroundColor: '#ffc658'
+          }
+        ]
+      };
+
+      // Pie Chart Data
+      const pieData = {
+        labels: ['Current Post-Solar Consumption', 'Current Solar to School', 'Additional Solar Benefit'],
+        datasets: [{
+          data: [
+            inputs.consumptionPostSolar,
+            existingEnergyToSchool,
+            additionalBenefit
+          ],
+          backgroundColor: ['#8884d8', '#82ca9d', '#ffc658']
+        }]
+      };
+
+      // Render/Update Bar Chart
+      if (barChart) barChart.destroy();
+      barChart = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: barData,
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} kWh`
+              }
+            }
+          }
+        }
       });
-      return { capacityKW: +capacityKW.toFixed(2), monthlyKWh };
+
+      // Render/Update Pie Chart
+      if (pieChart) pieChart.destroy();
+      pieChart = new Chart(document.getElementById('pieChart'), {
+        type: 'pie',
+        data: pieData,
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed.toLocaleString()} kWh`
+              }
+            }
+          }
+        }
+      });
     }
 
-    function calculate() {
-      const roofArea = parseFloat(document.getElementById('roofArea').value);
-      const panelWatt = parseFloat(document.getElementById('panelWatt').value);
-      const performanceRatio = parseFloat(document.getElementById('performanceRatio').value);
-
-      if (!roofArea || !panelWatt || !performanceRatio || performanceRatio > 1 || performanceRatio < 0.5) {
-        alert("Please enter valid values.");
-        return;
-      }
-
-      const result = calculateSolar(roofArea, panelWatt, performanceRatio);
-      const resultsDiv = document.getElementById('results');
-      resultsDiv.innerHTML = `
-        <p><strong>Estimated System Size:</strong> ${result.capacityKW} kW</p>
-        <p><strong>Estimated Monthly Generation (kWh):</strong></p>
-      `;
-
-      // Render the chart
-      const data = result.monthlyKWh.map((kWh, i) => ({
-        name: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i],
-        kWh
-      }));
-
-      ReactDOM.render(
-        React.createElement(ResponsiveContainer, { width: '100%', height: 300 },
-          React.createElement(BarChart, { data },
-            React.createElement(CartesianGrid, { strokeDasharray: "3 3" }),
-            React.createElement(XAxis, { dataKey: "name" }),
-            React.createElement(YAxis, {}),
-            React.createElement(Tooltip, {}),
-            React.createElement(Bar, { dataKey: "kWh", fill: "#007bff" })
-          )
-        ),
-        document.getElementById('chart')
-      );
-    }
+    window.onload = calculateAndRender;
   </script>
 </body>
 </html>
