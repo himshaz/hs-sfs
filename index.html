@@ -2,65 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Solar Scenario Calculator</title>
+  <title>Solar Benefit Visualizer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f9fafb;
-      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
       padding: 20px;
-      color: #333;
     }
-    h1, h2, h3 {
-      color: #1f2937;
-    }
-    .container {
-      max-width: 1200px;
-      margin: auto;
-    }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
+
     .card {
-      background: white;
+      background-color: white;
       padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
+
+    h1, h2 {
+      color: #333;
+    }
+
     label {
-      font-weight: 500;
+      display: block;
+      margin-top: 10px;
     }
-    input[type=number] {
+
+    input {
       width: 100%;
       padding: 8px;
-      margin-top: 5px;
-      margin-bottom: 15px;
+      margin-top: 4px;
+      border-radius: 6px;
       border: 1px solid #ccc;
-      border-radius: 6px;
     }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      background-color: #007BFF;
+      color: white;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
     .result {
-      background: #f3f4f6;
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 10px;
-    }
-    canvas {
-      max-width: 100%;
-    }
-    @media (max-width: 768px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
+      margin: 10px 0;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Solar Scenario Calculator</h1>
-    <div class="grid">
+  <h1>Solar Benefit Visualizer</h1>
+  <div class="grid">
+    <!-- Left Column: Inputs + Results -->
+    <div>
       <!-- Input Panel -->
       <div class="card">
         <h2>Input Parameters</h2>
@@ -85,8 +91,8 @@
         <button onclick="calculateAndRender()">Calculate</button>
       </div>
 
-      <!-- Result Panel -->
-      <div class="card">
+      <!-- Results Panel -->
+      <div class="card" style="margin-top: 20px;">
         <h2>Calculated Results</h2>
         <div class="result" id="result_actualConsumptionPreSolar"></div>
         <div class="result" id="result_existingEnergyToSchool"></div>
@@ -96,13 +102,13 @@
       </div>
     </div>
 
-    <!-- Charts -->
-    <div class="grid" style="margin-top: 30px;">
+    <!-- Right Column: Charts -->
+    <div>
       <div class="card">
         <h3>Solar Generation vs Usage</h3>
         <canvas id="barChart"></canvas>
       </div>
-      <div class="card">
+      <div class="card" style="margin-top: 20px;">
         <h3>Energy Consumption Breakdown</h3>
         <canvas id="pieChart"></canvas>
       </div>
@@ -110,99 +116,104 @@
   </div>
 
   <script>
-    let barChart, pieChart;
-
     function calculateAndRender() {
-      const inputs = {
-        consumptionPostSolar: parseFloat(document.getElementById('consumptionPostSolar').value),
-        existingSolarGen: parseFloat(document.getElementById('existingSolarGen').value),
-        existingSelfConsumption: parseFloat(document.getElementById('existingSelfConsumption').value),
-        totalGeneration: parseFloat(document.getElementById('totalGeneration').value),
-        combinedSelfConsumption: parseFloat(document.getElementById('combinedSelfConsumption').value),
-        addOnGeneration: parseFloat(document.getElementById('addOnGeneration').value),
-      };
+      const consumptionPostSolar = parseFloat(document.getElementById("consumptionPostSolar").value);
+      const existingSolarGen = parseFloat(document.getElementById("existingSolarGen").value);
+      const existingSelfConsumption = parseFloat(document.getElementById("existingSelfConsumption").value);
+      const totalGeneration = parseFloat(document.getElementById("totalGeneration").value);
+      const combinedSelfConsumption = parseFloat(document.getElementById("combinedSelfConsumption").value);
+      const addOnGeneration = parseFloat(document.getElementById("addOnGeneration").value);
 
-      const existingEnergyToSchool = inputs.existingSolarGen * inputs.existingSelfConsumption;
-      const actualConsumptionPreSolar = inputs.consumptionPostSolar + existingEnergyToSchool;
-      const combinedEnergyToSchool = inputs.totalGeneration * inputs.combinedSelfConsumption;
+      const existingEnergyToSchool = existingSolarGen * existingSelfConsumption;
+      const combinedEnergyToSchool = totalGeneration * combinedSelfConsumption;
       const additionalBenefit = combinedEnergyToSchool - existingEnergyToSchool;
-      const addOnSelfConsumption = inputs.addOnGeneration > 0 ? additionalBenefit / inputs.addOnGeneration : 0;
+      const actualConsumptionPreSolar = consumptionPostSolar + existingEnergyToSchool;
+      const addOnSelfConsumption = combinedEnergyToSchool - existingEnergyToSchool;
 
-      // Show results
-      document.getElementById("result_actualConsumptionPreSolar").innerText = `Actual Consumption (Pre-Solar): ${Math.round(actualConsumptionPreSolar).toLocaleString()} kWh`;
-      document.getElementById("result_existingEnergyToSchool").innerText = `Existing Energy to School: ${Math.round(existingEnergyToSchool).toLocaleString()} kWh`;
-      document.getElementById("result_combinedEnergyToSchool").innerText = `Combined Energy to School: ${Math.round(combinedEnergyToSchool).toLocaleString()} kWh`;
-      document.getElementById("result_additionalBenefit").innerText = `Additional Benefit: ${Math.round(additionalBenefit).toLocaleString()} kWh`;
-      document.getElementById("result_addOnSelfConsumption").innerText = `Add-on Self-Consumption: ${(addOnSelfConsumption * 100).toFixed(1)}%`;
+      // Display calculated results
+      document.getElementById("result_actualConsumptionPreSolar").innerText = `Actual Consumption Before Solar: ${actualConsumptionPreSolar.toFixed(0)} kWh`;
+      document.getElementById("result_existingEnergyToSchool").innerText = `Existing Solar Used On-Site: ${existingEnergyToSchool.toFixed(0)} kWh`;
+      document.getElementById("result_combinedEnergyToSchool").innerText = `Combined Solar Used On-Site: ${combinedEnergyToSchool.toFixed(0)} kWh`;
+      document.getElementById("result_additionalBenefit").innerText = `Additional Benefit from Add-on: ${additionalBenefit.toFixed(0)} kWh`;
+      document.getElementById("result_addOnSelfConsumption").innerText = `Add-on Solar Used On-Site: ${addOnSelfConsumption.toFixed(0)} kWh`;
 
-      // Bar Chart Data
-      const barData = {
-        labels: ['Current System', 'Combined System'],
-        datasets: [
-          {
-            label: 'Energy to School',
-            data: [existingEnergyToSchool, combinedEnergyToSchool],
-            backgroundColor: '#82ca9d'
-          },
-          {
-            label: 'Unused Solar',
-            data: [
-              inputs.existingSolarGen - existingEnergyToSchool,
-              inputs.totalGeneration - combinedEnergyToSchool
-            ],
-            backgroundColor: '#ffc658'
-          }
-        ]
-      };
+      // Update bar chart
+      updateBarChart([
+        actualConsumptionPreSolar,
+        existingSolarGen,
+        existingEnergyToSchool,
+        combinedEnergyToSchool
+      ]);
 
-      // Pie Chart Data
-      const pieData = {
-        labels: ['Current Post-Solar Consumption', 'Current Solar to School', 'Additional Solar Benefit'],
-        datasets: [{
-          data: [
-            inputs.consumptionPostSolar,
-            existingEnergyToSchool,
-            additionalBenefit
+      // Update pie chart
+      updatePieChart([
+        consumptionPostSolar,
+        existingEnergyToSchool,
+        addOnSelfConsumption
+      ]);
+    }
+
+    let barChartInstance, pieChartInstance;
+
+    function updateBarChart(data) {
+      const ctx = document.getElementById("barChart").getContext("2d");
+      if (barChartInstance) barChartInstance.destroy();
+      barChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: [
+            "Pre-Solar Consumption",
+            "Existing Solar Generation",
+            "Existing Solar Used On-site",
+            "Combined Solar Used On-site"
           ],
-          backgroundColor: ['#8884d8', '#82ca9d', '#ffc658']
-        }]
-      };
-
-      // Render/Update Bar Chart
-      if (barChart) barChart.destroy();
-      barChart = new Chart(document.getElementById('barChart'), {
-        type: 'bar',
-        data: barData,
+          datasets: [{
+            label: "kWh",
+            data: data,
+            backgroundColor: [
+              "#6c757d",
+              "#ffc107",
+              "#28a745",
+              "#007bff"
+            ]
+          }]
+        },
         options: {
           responsive: true,
           plugins: {
-            tooltip: {
-              callbacks: {
-                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} kWh`
-              }
-            }
-          }
-        }
-      });
-
-      // Render/Update Pie Chart
-      if (pieChart) pieChart.destroy();
-      pieChart = new Chart(document.getElementById('pieChart'), {
-        type: 'pie',
-        data: pieData,
-        options: {
-          responsive: true,
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: ctx => `${ctx.label}: ${ctx.parsed.toLocaleString()} kWh`
-              }
+            legend: { display: false },
+            title: {
+              display: false
             }
           }
         }
       });
     }
 
+    function updatePieChart(data) {
+      const ctx = document.getElementById("pieChart").getContext("2d");
+      if (pieChartInstance) pieChartInstance.destroy();
+      pieChartInstance = new Chart(ctx, {
+        type: "pie",
+        data: {
+          labels: ["Grid Import (Post-Solar)", "Existing Solar Used", "Add-on Solar Used"],
+          datasets: [{
+            label: "kWh",
+            data: data,
+            backgroundColor: [
+              "#dc3545",
+              "#ffc107",
+              "#28a745"
+            ]
+          }]
+        },
+        options: {
+          responsive: true
+        }
+      });
+    }
+
+    // Initial render
     window.onload = calculateAndRender;
   </script>
 </body>
